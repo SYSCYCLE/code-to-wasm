@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     wabt \
     nodejs \
     npm \
+    golang \
     && rm -rf /var/lib/apt/lists/*
 
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -19,7 +20,7 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     rustup target add wasm32-unknown-unknown
-    
+
 RUN wget https://github.com/tinygo-org/tinygo/releases/download/v0.33.0/tinygo_0.33.0_amd64.deb && \
     dpkg -i tinygo_0.33.0_amd64.deb && \
     rm tinygo_0.33.0_amd64.deb
