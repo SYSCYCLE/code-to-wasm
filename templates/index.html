@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal WASM Compiler</title>
+    <style>
+        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f4f4f4; }
+        .container { display: flex; gap: 20px; }
+        .box { flex: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 300px; font-family: monospace; background: #2d2d2d; color: #eee; padding: 10px; border: none; border-radius: 4px; box-sizing: border-box;}
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-size: 16px; margin-top: 10px;}
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border: 1px solid #ddd; overflow-x: auto; white-space: pre-wrap; height: 300px; }
+        select { padding: 8px; font-size: 16px; margin-bottom: 10px; width: 100%; }
+        .loading { display: none; color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h1>Universal WebAssembly Compiler</h1>
+    <p>C++, Rust, AssemblyScript veya Go kodunu WASM ve WAT formatına çevirin.</p>
+
+    <div class="container">
+        <div class="box">
+            <h3>Kaynak Kod</h3>
+            <select id="language" onchange="setExampleCode()">
+                <option value="cpp">C++ (Clang)</option>
+                <option value="rust">Rust</option>
+                <option value="assemblyscript">AssemblyScript (TS)</option>
+                <option value="go">Go (TinyGo)</option>
+            </select>
+            <textarea id="code" spellcheck="false"></textarea>
+            <button onclick="compileCode()">Derle (Compile)</button>
+            <span id="loading" class="loading">Derleniyor... Lütfen bekleyin.</span>
+        </div>
+
+        <div class="box">
+            <h3>WAT (WebAssembly Text)</h3>
+            <pre id="watOutput">Sonuç burada görünecek...</pre>
+        </div>
+    </div>
+    
+    <div class="box" style="margin-top: 20px;">
+        <h3>WASM Base64 Çıktısı</h3>
+        <textarea id="wasmOutput" style="height: 100px; color: #333; background: #fff; border: 1px solid #ccc;" readonly></textarea>
+    </div>
+
+    <script>
+        const examples = {
+            cpp: `extern "C" {\n  int add(int a, int b) {\n    return a + b;\n  }\n}`,
+            rust: `#[no_mangle]\npub extern "C" fn add(a: i32, b: i32) -> i32 {\n    a + b\n}`,
+            assemblyscript: `export function add(a: i32, b: i32): i32 {\n  return a + b;\n}`,
+            go: `package main\n\n//export add\nfunc add(x, y int) int {\n\treturn x + y\n}\n\nfunc main() {}`
+        };
+
+        function setExampleCode() {
+            const lang = document.getElementById('language').value;
+            document.getElementById('code').value = examples[lang];
+        }
+
+        async function compileCode() {
+            const lang = document.getElementById('language').value;
+            const code = document.getElementById('code').value;
+            const btn = document.querySelector("button");
+            const loading = document.getElementById("loading");
+
+            btn.disabled = true;
+            loading.style.display = "inline";
+            document.getElementById('watOutput').innerText = "İşleniyor...";
+            document.getElementById('wasmOutput').value = "";
+
+            const formData = new FormData();
+            formData.append('language', lang);
+            formData.append('code', code);
+
+            try {
+                const response = await fetch('/compile', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('watOutput').innerText = data.wat;
+                    document.getElementById('wasmOutput').value = data.wasm_b64;
+                } else {
+                    document.getElementById('watOutput').innerText = "HATA:\n" + data.output;
+                }
+            } catch (e) {
+                document.getElementById('watOutput').innerText = "Sunucu hatası: " + e;
+            } finally {
+                btn.disabled = false;
+                loading.style.display = "none";
+            }
+        }
+        setExampleCode();
+    </script>
+</body>
+</html>
