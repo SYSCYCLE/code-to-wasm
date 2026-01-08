@@ -11,9 +11,8 @@ if not os.path.exists(TEMP_DIR):
     os.makedirs(TEMP_DIR)
 
 def run_command(cmd_list):
-    """Komutu çalıştırır ve çıktısını yakalar."""
     try:
-        proc = subprocess.run(cmd_list, capture_output=True, text=True, timeout=30)
+        proc = subprocess.run(cmd_list, capture_output=True, text=True, timeout=120)
         if proc.returncode != 0:
             return False, proc.stderr + "\n" + proc.stdout
         return True, ""
@@ -51,56 +50,56 @@ def compile_code():
     error_msg = None
     success = False
 
+    env = os.environ.copy()
+    env["GOCACHE"] = "/tmp/go-cache"
+    if not os.path.exists("/tmp/go-cache"):
+        os.makedirs("/tmp/go-cache")
+
     try:
         if lang == 'cpp':
-            cmd = [
-                'clang', '--target=wasm32', '-O3', 
-                '-nostdlib', '-Wl,--no-entry', '-Wl,--export-all', 
-                '-o', wasm_file, src_file
-            ]
+            cmd = ['clang', '--target=wasm32', '-O3', '-nostdlib', '-Wl,--no-entry', '-Wl,--export-all', '-o', wasm_file, src_file]
             success, error_msg = run_command(cmd)
 
         elif lang == 'rust':
-            cmd = [
-                'rustc', '--target=wasm32-unknown-unknown', 
-                '--crate-type=cdylib', '-O', 
-                '-o', wasm_file, src_file
-            ]
+            cmd = ['rustc', '--target=wasm32-unknown-unknown', '--crate-type=cdylib', '-O', '-o', wasm_file, src_file]
             success, error_msg = run_command(cmd)
 
         elif lang == 'assemblyscript':
-            cmd = [
-                'asc', src_file, '-o', wasm_file, '--optimize', '--noAssert'
-            ]
+            cmd = ['asc', src_file, '-o', wasm_file, '--optimize', '--noAssert']
             success, error_msg = run_command(cmd)
             
         elif lang == 'go':
-            cmd = [
-                'tinygo', 'build', '-o', wasm_file, '-target=wasm', '-no-debug', src_file
-            ]
-            success, error_msg = run_command(cmd)
+            cmd = ['tinygo', 'build', '-o', wasm_file, '-target=wasm', '-no-debug', src_file]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
+                if proc.returncode != 0:
+                    success = False
+                    error_msg = proc.stderr + "\n" + proc.stdout
+                else:
+                    success = True
+            except subprocess.TimeoutExpired:
+                success = False
+                error_msg = "Error: TinyGo Compilation timed out."
 
         else:
             return jsonify({'status': 'error', 'output': 'Unsupported language'})
 
         if not success:
             return jsonify({'status': 'error', 'output': error_msg})
+
         cmd_wat = ['wasm2wat', wasm_file, '-o', wat_file]
         success_wat, error_wat = run_command(cmd_wat)
         
         if not success_wat:
              return jsonify({'status': 'error', 'output': 'WASM generated but WAT conversion failed:\n' + error_wat})
+
         with open(wat_file, "r") as f:
             wat_output = f.read()
 
         with open(wasm_file, "rb") as f:
             wasm_b64 = base64.b64encode(f.read()).decode('utf-8')
 
-        return jsonify({
-            'status': 'success', 
-            'wat': wat_output, 
-            'wasm_b64': wasm_b64
-        })
+        return jsonify({'status': 'success', 'wat': wat_output, 'wasm_b64': wasm_b64})
 
     except Exception as e:
         return jsonify({'status': 'error', 'output': str(e)})
