@@ -12,6 +12,7 @@ if not os.path.exists(TEMP_DIR):
 
 def run_command(cmd_list):
     try:
+        # Timeout'u 120 saniyede tutuyoruz
         proc = subprocess.run(cmd_list, capture_output=True, text=True, timeout=120)
         if proc.returncode != 0:
             return False, proc.stderr + "\n" + proc.stdout
@@ -69,7 +70,16 @@ def compile_code():
             success, error_msg = run_command(cmd)
             
         elif lang == 'go':
-            cmd = ['tinygo', 'build', '-o', wasm_file, '-target=wasm', '-no-debug', src_file]
+            cmd = [
+                'tinygo', 'build', 
+                '-o', wasm_file, 
+                '-target=wasm', 
+                '-scheduler=none', 
+                '-gc=leaking',
+                '-no-debug', 
+                src_file
+            ]
+            
             try:
                 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
                 if proc.returncode != 0:
