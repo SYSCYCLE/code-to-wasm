@@ -12,7 +12,6 @@ if not os.path.exists(TEMP_DIR):
 
 def run_command(cmd_list):
     try:
-        # Timeout'u 120 saniyede tutuyoruz
         proc = subprocess.run(cmd_list, capture_output=True, text=True, timeout=120)
         if proc.returncode != 0:
             return False, proc.stderr + "\n" + proc.stdout
