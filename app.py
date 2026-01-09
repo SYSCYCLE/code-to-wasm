@@ -61,7 +61,17 @@ def compile_code():
             success, error_msg = run_command(cmd)
 
         elif lang == 'rust':
-            cmd = ['rustc', '--target=wasm32-unknown-unknown', '--crate-type=cdylib', '-O', '-o', wasm_file, src_file]
+            cmd = [
+                'rustc', 
+                '--target=wasm32-unknown-unknown', 
+                '--crate-type=cdylib', 
+                '-C', 'opt-level=z', 
+                '-C', 'lto=fat',
+                '-C', 'panic=abort',
+                '-C', 'strip=symbols',
+                '-o', wasm_file, 
+                src_file
+            ]
             success, error_msg = run_command(cmd)
 
         elif lang == 'assemblyscript':
